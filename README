@@ -1,0 +1,61 @@
+gesture Carnival
+
+-You'll find here a set of classes used to recognise gesture iPhone/iPad (iXXX)
+
+
+This work is based on Action Script Mouse Gesture Recognizer
+from Didier Brun
+http://www.bytearray.org/?p=91
+ 
+These classes are under RECIPROCAL PUBLIC LICENSE.
+http://www.opensource.org/licenses/rpl.php
+
+
+see http://www.bytearray.org/?p=91 for more information
+
+I made some changes :
+-use another levensthein algorithm (don't remember origin check gOOgle )
+-add a patterns.plist file for a list of basic patterns (letters in fact)
+
+ basic usage using UILongPressGestureRecognizer
+ 
+ 
+ 
+ - (IBAction)HandleTouch:(UILongPressGestureRecognizer *)recognizer {
+     CGPoint pp = [recognizer locationInView:self.view];
+    switch(recognizer.state){
+        case UIGestureRecognizerStateBegan:
+              if(reco){
+                  [reco release];
+              }
+            reco = [[alphaRecogniser alloc]init];
+            if(reco){
+                [reco startRecognition:pp];
+            }
+            
+            break;
+        case UIGestureRecognizerStateChanged:
+            if (reco){
+                [reco addToRecognition:pp];
+            }
+            break;
+        case UIGestureRecognizerStateEnded:
+            if (reco){
+                pattern * pat = [reco stopRecognition:pp];
+                if (pat){
+                   // label.text = pat.name;
+                }
+            }
+            break;
+    }
+
+    
+}
+
+
+first version : 2011 july 01
+
+*todo :
+-docs
+-comments
+-helper
