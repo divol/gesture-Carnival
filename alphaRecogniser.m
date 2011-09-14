@@ -19,7 +19,7 @@
 
 #define DEFAULT_NB_SECTORS 8 // Number of sectors
 #define DEFAULT_TIME_STEP 20 // Capture interval in ms
-#define DEFAULT_PRECISION 8 // Precision of catpure in pixels 8
+#define DEFAULT_PRECISION 6 // Precision of catpure in pixels 8
 #define DEFAULT_FIABILITY 30 // Default fiability level
 
 @implementation alphaRecogniser
@@ -99,45 +99,95 @@
 
 
 
+// done 2 time for test (remove one for real work
+//the first time use CentralDispatch, the secon a normal loop : no differences.... !!!!!
+
 -(pattern *)matchGesture{
-    unsigned int bestCost=1000000;
-    unsigned int cost;
-    pattern * bestGesture =NULL;
+	__block unsigned int bestCost=1000000;
+	
+	__block  pattern * bestGesture =NULL;
     
-    
+    NSDate *methodStart = [NSDate date];
+	
     globalInfos.rect = CGRectMake(globalInfos.minx,globalInfos.miny,globalInfos.maxx-globalInfos.minx,globalInfos.maxy-globalInfos.miny);
-    for (pattern *p in patterns){
-       // cost = [self costLevenC:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
+    
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    size_t count = [patterns count];
+    
+	dispatch_apply(count, queue, ^(size_t i) {
+        pattern *p = [patterns objectAtIndex:i];
+        int cost = [self costLevenC:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
         // cost = [self costLeven:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
-         cost = [self costLeven3:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
+        // cost = [self costLeven3:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
         
         
-       
+        NSLog (@"test pattern %@, with cost %i", [p name],cost);
+        
         
         if (cost<=DEFAULT_FIABILITY){
-            /*
-            if ([[p matcher] isEqualToString:@""]){
-                globalInfos.cost=cost;
-                cost=[p match:globalInfos];
+            
+            if (cost<bestCost){
+                
+				
+				
+				bestCost=cost;
+				bestGesture=p;
+				
+                
+                
             }
-             */
+            
+        }
+		
+        
+    });
+	
+    
+    NSDate *methodFinish = [NSDate date];
+    NSTimeInterval executionTime = [methodFinish timeIntervalSinceDate:methodStart];
+	
+    NSLog(@"executionTime block %f",executionTime);
+    
+    
+	methodStart = [NSDate date];
+	
+	
+    for (pattern *p in patterns){
+		int cost = [self costLevenC:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
+		// cost = [self costLeven:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
+        // cost = [self costLeven3:[p pathpatternAsNumbers]  comparedTo:globalInfos.moves];
+        
+		
+        NSLog (@"test pattern %@, with cost %i", [p name],cost);
+		
+		
+        
+        if (cost<=DEFAULT_FIABILITY){
+			
             if (cost<bestCost){
                 bestCost=cost;
                 bestGesture=p;
-                 
+				
             }
-        
+			
         }
     }
+	
     
+    methodFinish = [NSDate date];
+	executionTime = [methodFinish timeIntervalSinceDate:methodStart];
+    
+    NSLog(@"executionTime normal %f",executionTime);
+	
     if (bestGesture){
         //got the HOLY GRAAL
         NSLog (@"You Write %@", [bestGesture name]);
-         NSLog (@"found %@", [bestGesture pathpatternAsNumbers]);
+		NSLog (@"found %@", [bestGesture pathpatternAsNumbers]);
         NSLog (@"entry %@", globalInfos.moves);
     }
     
     return bestGesture;
+
 }
 
 -(void)addMove:(float) dx dy:(float)dy{
@@ -150,11 +200,16 @@
     
     unsigned int no = floor(angle/(M_PI*2.0f)*100.0f);
     unsigned int before=-1;
-    if ([globalInfos.moves count] !=0)
-        before = [[globalInfos.moves objectAtIndex:[globalInfos.moves count]-1]intValue];
-    if ([[anglesMap objectAtIndex:no]intValue] != before)
-        [globalInfos.moves addObject:[anglesMap objectAtIndex:no]];
-    
+	/* to compress vector uncote but it's unusefull (just a test)
+	 unsigned int before=-1;
+	 
+	 if ([globalInfos.moves count] !=0)
+	 before = [[globalInfos.moves objectAtIndex:[globalInfos.moves count]-1]intValue];
+	 if ([[anglesMap objectAtIndex:no]intValue] != before)
+	 [globalInfos.moves addObject:[anglesMap objectAtIndex:no]];
+	 */
+	
+    [globalInfos.moves addObject:[anglesMap objectAtIndex:no]];
     
 }
 -(void)buildAnglesMap{
@@ -315,7 +370,7 @@
 
 - (int) costLevenC: (NSArray *) stringA comparedTo:(NSArray *) stringB{
 
-     int k, i, j, cost, * d,*w, distance;
+	int k, i, j, cost, * d,*w, distance;
     int n = [stringA count];
     int m = [stringB count];	
     
@@ -327,12 +382,12 @@
         d[k] = 0;
         w[k] = 0;
     }
-   
+	
     for( k = 0; k < m+1; k++)
-   {
-       d[ k * n ] = 0;
-       w[k * n] = 0;
-   }
+	{
+		d[ k * n ] = 0;
+		w[k * n] = 0;
+	}
     for ( i=1; i<=n ; i++){
         for ( j=1; j<m ; j++){
             NSNumber *number = [self difAngle:[stringA objectAtIndex:i-1]  withNumber:[stringB objectAtIndex:j-1]];
@@ -340,16 +395,22 @@
         }
     }
     
-    for ( i=1; i<=n ; i++){
-        for ( j=1; j<m ; j++){
-            w[j*n + i]=1000000;
-        }
+	
+	
+    for ( j=1; j<m ; j++){
+		w[j*n]=1000000;
     }
-    w[0]=1000000;
+    
+    for ( j=1; j<n ; j++){
+        w[j]=1000000;
+    }
+    w[0]=0;
+    
     int x,y,pa,pb,pc;
     
     for (x=1;x<=n;x++){
         for (y=1;y<m;y++){
+            
             cost=d[y*n +x];
             pa=w[y*n +x-1]+cost;
             pb=w[(y-1)*n + x]+cost;
@@ -365,6 +426,7 @@
     free(d);
     
     return distance;
+	
 }
 
  
